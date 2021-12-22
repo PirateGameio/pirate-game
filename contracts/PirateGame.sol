@@ -20,27 +20,27 @@ contract PirateGame is Accessable, Whitelist, ReentrancyGuard, Pausable {
     event MintRevealed(address indexed owner, uint256 indexed amount);
 
     //$CACAO cost 
-    uint256[3] private _cacaoCost = [0 ether, 0 ether, 0 ether];
+    uint256[3] private _cacaoCost = [20000 ether, 40000 ether, 80000 ether];
     uint16 public maxBunchSize = 10;
 
     bool public allowCommits = true;
 
+    bool public isWhitelistSale = true;
     bool public isPublicSale = false;
-    uint256 public presalePrice = 0.0 ether;
+    uint256 public presalePrice = 0.06 ether;
     uint256 public treasureChestTypeId;
 
 
     uint256 public startedTime = 0;
 
-    uint256 private maxPrice = 0.0 ether;
-    uint256 private minPrice = 0.0 ether;
-    uint256 private priceDecrementAmt = 0.0 ether;
-    uint256 public timeToDecrementPrice = 10 minutes;
-
+    uint256 private maxPrice = 0.3266 ether;
+    uint256 private minPrice = 0.0666 ether;
+    uint256 private priceDecrementAmt = 0.01 ether;
+    uint256 private timeToDecrementPrice = 30 minutes;
 
 
     mapping(address => uint16) public whitelistMinted;
-    uint16 public whitelistAmountPerUser = 0;
+    uint16 public whitelistAmountPerUser = 5;
 
     struct MintCommit {
         bool exist;
@@ -111,7 +111,7 @@ contract PirateGame is Accessable, Whitelist, ReentrancyGuard, Pausable {
 
 
     function avaliableWhitelistTokens(address user, bytes32[] memory whitelistProof) external view returns (uint256) {
-        if (!inWhitelist(_msgSender(), whitelistProof))
+        if (!inWhitelist(user, whitelistProof) || !isWhitelistSale)
             return 0;
         return whitelistAmountPerUser - whitelistMinted[user];
     }
@@ -120,7 +120,9 @@ contract PirateGame is Accessable, Whitelist, ReentrancyGuard, Pausable {
     function mintCommitWhitelist(uint16 amount, bool isStake, bytes32[] memory whitelistProof) 
         external payable
         nonReentrant
-    {
+        publicSaleStarted
+    {   
+        require(isWhitelistSale, "Whitelist sale disabled");
         require(whitelistMinted[_msgSender()] + amount <= whitelistAmountPerUser, "Too many mints");
         require(inWhitelist(_msgSender(), whitelistProof), "Not in whitelist");
         whitelistMinted[_msgSender()] += amount;
@@ -129,10 +131,18 @@ contract PirateGame is Accessable, Whitelist, ReentrancyGuard, Pausable {
 
     function mintCommit(uint16 amount, bool isStake) 
         external payable 
-        nonReentrant 
+        nonReentrant
+        publicSaleStarted
     {
-        require(isPublicSale, "Public sale not started yet");
         return _commit(amount, isStake, currentEthPriceToMint());
+    }
+
+    function _mintCommitAirdrop(uint16 amount) 
+        external payable 
+        nonReentrant
+        onlyAdmin
+    {
+        return _commit(amount, false, 0);
     }
 
 
@@ -184,6 +194,15 @@ contract PirateGame is Accessable, Whitelist, ReentrancyGuard, Pausable {
         onlyEOA
     {
         return reveal(_msgSender());
+    }
+
+    function _mintRevealAirdrop(address _to)  external
+        whenNotPaused 
+        nonReentrant
+        onlyAdmin
+        onlyEOA
+    {
+        return reveal(_to);
     }
 
 
@@ -246,9 +265,6 @@ contract PirateGame is Accessable, Whitelist, ReentrancyGuard, Pausable {
 
     function _setCacaoCost(uint256[3] memory costs) external onlyAdmin {
         _cacaoCost = costs;
-        // for(uint8 i = 0; i < costs.length; i++) {
-        //     _cacaoCost[i] = costs[i];
-        // }
     }
 
     function _setAllowCommits(bool allowed) external onlyAdmin {
@@ -260,6 +276,10 @@ contract PirateGame is Accessable, Whitelist, ReentrancyGuard, Pausable {
         if(isPublicSale) {
             startedTime = block.timestamp;
         }
+    }
+
+    function setWhitelistSale(bool isSale) external onlyAdmin {
+        isWhitelistSale = isSale;
     }
 
     function _setMaxBunchSize(uint16 size) external onlyAdmin {
@@ -286,7 +306,7 @@ contract PirateGame is Accessable, Whitelist, ReentrancyGuard, Pausable {
      * @param seed a random value to select a recipient from
      * @return the address of the recipient (either the minter or the Pirate thief's owner)
      */
-    function selectRecipient(uint256 seed, uint256 minted, uint256 paidTokens) internal view returns (address) {
+    function selectRecipient(uint256 seed, uint256 minted, uint256 paidTokens) internal view returns (address) { //TODO
         if (minted <= paidTokens || ((seed >> 245) % 10) != 0) // top 10 bits haven't been used
             return _msgSender(); 
 
@@ -363,6 +383,11 @@ contract PirateGame is Accessable, Whitelist, ReentrancyGuard, Pausable {
 
     modifier commitsEnabled() {
         require(allowCommits, "Adding minting commits disalolwed");
+        _;
+    }
+
+    modifier publicSaleStarted() {
+        require(isPublicSale, "Public sale not started yet");
         _;
     }
 }
