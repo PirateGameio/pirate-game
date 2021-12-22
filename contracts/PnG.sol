@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 import "./interfaces/IPnG.sol";
 import "./interfaces/ITraits.sol";
@@ -163,7 +163,7 @@ contract TraitSelector {
 
 
 
-contract PnG is IPnG, ERC721Enumerable, Accessable, Pausable, TraitSelector {
+contract PnG is IPnG, ERC721, Accessable, Pausable, TraitSelector {
     uint256 constant MAX_INT = type(uint256).max;
 
     struct LastWrite {
@@ -202,11 +202,11 @@ contract PnG is IPnG, ERC721Enumerable, Accessable, Pausable, TraitSelector {
 
     constructor(uint256 _maxTokens) ERC721("Pirate Game", "PnG") {
         maxTokens = _maxTokens;
-        PAID_TOKENS = _maxTokens / 4;
+        PAID_TOKENS = _maxTokens / 5;
         _pause();
     }
 
-    /** CRITICAL TO SETUP / MODIFIERS */
+    /** MODIFIERS */
 
     modifier requireContractsSet() {
         require(address(traits) != address(0) && address(fleet) != address(0), "Contracts not set");
@@ -419,29 +419,12 @@ contract PnG is IPnG, ERC721Enumerable, Accessable, Pausable, TraitSelector {
         return traits.tokenURI(tokenId);
     }
 
-    /** OVERRIDES FOR SAFETY */
 
-    function tokenOfOwnerByIndex(address owner, uint256 index) 
-        public view virtual 
-        override(ERC721Enumerable, IERC721Enumerable) 
-        blockIfChangingAddress 
-        returns (uint256) 
-    {
-        // Y U checking on this address in the same block it's being modified
-        require(  
-            isAdmin(_msgSender()) || lastWriteAddress[owner].blockNum < block.number, 
-            "Cannot interact in the current block"
-        );
-        uint256 tokenId = super.tokenOfOwnerByIndex(owner, index);
-        require(
-            isAdmin(_msgSender()) || lastWriteToken[tokenId].blockNum < block.number, 
-            "Cannot interact in the current block"
-        );
-
-        return tokenId;
+    function totalSupply() public view returns (uint256) {
+        return minted;
     }
-    
 
+    
     function balanceOf(address owner) public view virtual override(ERC721, IERC721) 
         blockIfChangingAddress 
         returns (uint256) 
@@ -470,16 +453,12 @@ contract PnG is IPnG, ERC721Enumerable, Accessable, Pausable, TraitSelector {
     }
 
 
-    function tokenByIndex(uint256 index) public view virtual 
-        override(ERC721Enumerable, IERC721Enumerable) 
-        returns (uint256) 
-    {
-        uint256 tokenId = super.tokenByIndex(index);
+    function tokenByIndex(uint256 index) public view returns (uint256) {
         require(
-            isAdmin(_msgSender()) || lastWriteToken[tokenId].blockNum < block.number, 
+            isAdmin(_msgSender()) || lastWriteToken[index+1].blockNum < block.number, 
             "Cannot interact in the current block"
         );
-        return tokenId;
+        return index + 1;
     }
 
 
