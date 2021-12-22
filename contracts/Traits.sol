@@ -182,17 +182,17 @@ contract Traits is Accessable, ITraits {
                 attributeForTypeAndValue(_traitTypes[11], traitData[11][s.mouth].name),',',
                 attributeForTypeAndValue(_traitTypes[12], traitData[12][s.eyes].name),',',
                 attributeForTypeAndValue(_traitTypes[13], traitData[13][s.weapon].name),',',
-                s.hat > 0 ? attributeForTypeAndValue(_traitTypes[14], traitData[14][s.hat].name) : '',',',
-                attributeForTypeAndValue("Rank", _ranks[s.alphaIndex])
+                attributeForTypeAndValue(_traitTypes[14], s.hat > 0 ? traitData[14][s.hat].name : 'None'), ',',
+                attributeForTypeAndValue("rank", _ranks[s.alphaIndex])
             ));
         }
         
         return string(abi.encodePacked(
             '[',
             traits,
-            ',{"trait_type":"Generation","value":',
+            ',{"trait_type":"generation","value":',
             tokenId <= nftContract.getPaidTokens() ? '"Gen 0"' : '"Gen 1"',
-            '},{"trait_type":"Type","value":',
+            '},{"trait_type":"type","value":',
             s.isGalleon ? '"Galleon"' : '"Pirate"',
             '}]'
         ));
